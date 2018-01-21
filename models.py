@@ -6,10 +6,6 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.eager as tfe
 
-def glorot_init(shape):
-    return np.random.uniform(-np.sqrt(6) / np.sqrt(shape[0] + shape[1]),
-                             np.sqrt(6) / np.sqrt(shape[0] + shape[1]), size=shape)
-
 class DNN(object):
     def __init__(self, input_shape=784, output_shape=10, layers=[100, 50],
             hidden_act=tf.nn.relu, output_act=tf.identity):
@@ -24,19 +20,25 @@ class DNN(object):
             b_init = 0.0
 
         # input to hidden
-        self.W_ih = tfe.Variable(glorot_init((input_shape, layers[0])), dtype=tf.float32)
-        self.b_ih = tfe.Variable(np.full(layers[0], b_init), dtype=tf.float32)
+        self.W_ih = tf.get_variable('W_ih', (input_shape, layers[0]),
+                                    tf.float32, tf.glorot_uniform_initializer())
+        self.b_ih = tf.get_variable('b_ih', (layers[0]),
+                                    tf.float32, tf.constant_initializer(b_init))
 
         self.W_hh = []
         self.b_hh = []
         # hidden to hidden
         for i, l in enumerate(layers[1:]):
-            self.W_hh.append(tfe.Variable(glorot_init((layers[i], l)), dtype=tf.float32))
-            self.b_hh.append(tfe.Variable(np.full(l, b_init),dtype=tf.float32))
+            self.W_hh.append(tf.get_variable('W_hh_%d' % i, (layers[i], l),
+                                             tf.float32, tf.glorot_uniform_initializer()))
+            self.b_hh.append(tf.get_variable('b_hh_%d' % i, l,
+                                             tf.float32, tf.glorot_uniform_initializer()))
 
         # hidden to output
-        self.W_ho = tfe.Variable(glorot_init((layers[-1], output_shape)), dtype=tf.float32)
-        self.b_ho = tfe.Variable(np.full(output_shape, 0.0), dtype=tf.float32)
+        self.W_ho = tf.get_variable('W_ho', (layers[-1], output_shape),
+                                    tf.float32, tf.glorot_uniform_initializer())
+        self.b_ho = tf.get_variable('b_ho', output_shape,
+                                    tf.float32, tf.zeros_initializer())
 
     def predict(self, inputs):
         # input to hidden
