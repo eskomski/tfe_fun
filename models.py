@@ -61,3 +61,32 @@ class DNN(object):
 
         return result
 
+class RNN(object):
+    def __init__(self, output_shape=10, layers=[100],
+            hidden_act=tf.nn.relu, output_act=tf.identity, cell_type=tf.nn.rnn_cell.LSTMCell):
+        self.hidden_act = hidden_act
+        self.output_act = output_act
+
+        if len(layers) == 1:
+            self.cell = cell_type(layers[0])
+        else:
+            multi_cell = [cell_type(l) for l in layers]
+            self.cell = tf.nn.rnn_cell.MultiRNNCell(multi_cell)
+
+        self.W_ho = tf.get_variable('W_ho', (layers[-1], output_shape),
+                                    tf.float32, tf.glorot_uniform_initializer())
+
+        self.b_ho = tf.get_variable('b_ho', output_shape,
+                                    tf.float32, tf.zeros_initializer())
+
+    def predict(self, inputs):
+        hs, h_f = tf.nn.dynamic_rnn(self.cell, inputs, dtype=tf.float32)
+
+        if type(h_f) == tuple:
+            h_f = h_f[-1]
+
+        if type(h_f) == tf.nn.rnn_cell.LSTMStateTuple:
+            h_f = h_f.h
+
+        return self.output_act(tf.matmul(h_f, self.W_ho) + self.b_ho)
+
