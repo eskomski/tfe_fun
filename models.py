@@ -49,7 +49,7 @@ class DNN(object):
             result = self.hidden_act(tf.matmul(result, W) + b)
 
         # hidden to output
-        return tf.matmul(result, self.W_ho) + self.b_ho
+        return self.output_act(tf.matmul(result, self.W_ho) + self.b_ho)
 
     def get_layer(self, inputs, layer):
         # input to hidden
@@ -89,4 +89,43 @@ class RNN(object):
             h_f = h_f.h
 
         return self.output_act(tf.matmul(h_f, self.W_ho) + self.b_ho)
+
+class CNN(object):
+    def __init__(self, output_shape=10, hidden_act=tf.nn.relu, output_act=tf.identity):
+        self.hidden_act = hidden_act
+        self.output_act = output_act
+
+        self.W_c1 = tf.get_variable('W_c1', [3, 3, 1, 32], 
+                                    tf.float32, tf.glorot_uniform_initializer())
+        self.b_c1 = tf.get_variable('b_c1', 32,
+                                    tf.float32, tf.constant_initializer(0.1))
+        self.W_c2 = tf.get_variable('W_c2', [5, 5, 32, 64],
+                                    tf.float32, tf.glorot_uniform_initializer())
+        self.b_c2 = tf.get_variable('b_c2', 64,
+                                    tf.float32, tf.constant_initializer(0.1))
+
+        self.W_fc = tf.get_variable('W_fc', (7*7*64, 1024),
+                                    tf.float32, tf.glorot_uniform_initializer())
+        self.b_fc = tf.get_variable('b_fc', 1024,
+                                    tf.float32, tf.constant_initializer(0.1))
+
+        self.W_ho = tf.get_variable('W_ho', (1024, output_shape),
+                                    tf.float32, tf.glorot_uniform_initializer())
+        self.b_ho = tf.get_variable('b_ho', output_shape,
+                                    tf.float32, tf.zeros_initializer())
+
+    def predict(self, inputs):
+        # first conv layer
+        result = self.hidden_act(tf.nn.conv2d(inputs, self.W_c1, strides=[1, 1, 1, 1], padding='SAME') + self.b_c1)
+        result = tf.nn.max_pool(result, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+
+        # second conv layer
+        result = self.hidden_act(tf.nn.conv2d(result, self.W_c2, strides=[1, 1, 1, 1], padding='SAME') + self.b_c2)
+        result = tf.nn.max_pool(result, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+
+        # fc layer
+        result = tf.reshape(result, [-1, 7*7*64])
+        result = self.hidden_act(tf.matmul(result, self.W_fc) + self.b_fc)
+
+        return self.output_act(tf.matmul(result, self.W_ho) + self.b_ho)
 
